@@ -242,6 +242,7 @@ static int list_ports(struct state *st) {
 	struct libusb_device **devs;
 	struct libusb_device *dev;
 	int current;
+	int hub_number = 0;
 	int ret = 0;
 
 	if (libusb_get_device_list(st->ctx, &devs) < 0){
@@ -263,30 +264,23 @@ static int list_ports(struct state *st) {
 
 		dev_vid = libusb_le16_to_cpu(device_desc.idVendor);
 		dev_pid = libusb_le16_to_cpu(device_desc.idProduct);
-		printf("Bus %03d Device %03d: ID %04x:%04x",
-				libusb_get_bus_number(dev),
-			       	libusb_get_device_address(dev),
-			       	dev_vid, dev_pid);
 
-		if (device_desc.bDeviceClass != LIBUSB_CLASS_HUB) {
-			printf("  Device is not a hub\n");
+		if (libusb_open(dev, &uh) != 0 )
 			continue;
-		}
-
-		if (libusb_open(dev, &uh) != 0 ) {
-			printf("\n");
-			continue;
-		}
 
 
-		if (dev_vid == 0x05e3) 
+		if (dev_vid == 0x05e3 && dev_pid == 0x0614) {
+			if (hub_number++ == 0)
+				printf("Internal hub - ");
+			else if (hub_number++ == 1)
+				printf("External hub - ");
+			else
+				printf("Unknown hub %d - ", hub_number-2);
 			hub_port_status(uh, 4);
-
+		}
 
 		libusb_free_config_descriptor(config_desc);
 		libusb_close(uh);
-
-		printf("\n");
 	}
 err:
 	libusb_free_device_list(devs, 1);
@@ -295,11 +289,12 @@ err:
 }
 
 static int print_help(struct state *st) {
-	fprintf (stderr,
-		"Usage: %s [-e PORT] [-d PORT] \n"
+	fprintf(stderr,
+		"Usage: %s [-e PORT] [-d PORT] -l\n"
 		"\n"
 		"Where PORT is defined as 'i' or 'e' followed by the port number.\n"
 		"For example, 'i4' for internal port 4, or 'e2' for external port 2.\n"
+		"To list port status, run with -l.\n"
 		"",
 		st->progname);
 	return 0;
@@ -321,30 +316,6 @@ static int novena_hub_deinit(struct state *st) {
 	libusb_exit(st->ctx);
 	return 0;
 }
-
-/*
-* HUB-CTRL  -  program to control port power/led of USB hub
-*
-*   # hub-ctrl                    // List hubs available
-*   # hub-ctrl -P 1               // Power off at port 1
-*   # hub-ctrl -P 1 -p 1          // Power on at port 1
-*   # hub-ctrl -P 2 -l            // LED on at port 2
-*
-* Requirement: USB hub which implements port power control / indicator control
-*
-*      Work fine:
-*         Elecom's U2H-G4S: www.elecom.co.jp (indicator depends on power)
-*         04b4:6560
-*
-*	   Sanwa Supply's USB-HUB14GPH: www.sanwa.co.jp (indicators don't)
-*
-*	   Targus, Inc.'s PAUH212: www.targus.com (indicators don't)
-*         04cc:1521
-*
-*	   Hawking Technology's UH214: hawkingtech.com (indicators don't)
-*
-*/
-
 
 
 int main(int argc, char * const *argv) {
@@ -402,147 +373,6 @@ int main(int argc, char * const *argv) {
 	if (!action_taken)
 		print_help(&st);
 
-#if 0
-	for (i = 1; i < argc; i++) {
-		if (argv[i][0] == '-')
-			switch (argv[i][1])
-		{
-			case 'h':
-				if (++i >= argc || busnum > 0 || devnum > 0)
-					exit_with_usage (argv[0]);
-				hub = atoi (argv[i]);
-				break;
-
-			case 'b':
-				if (++i >= argc || hub >= 0)
-					exit_with_usage (argv[0]);
-				busnum = atoi (argv[i]);
-				break;
-
-			case 'd':
-				if (++i >= argc || hub >= 0)
-					exit_with_usage (argv[0]);
-				devnum = atoi (argv[i]);
-				break;
-
-			case 'P':
-				if (++i >= argc)
-					exit_with_usage (argv[0]);
-				port = atoi (argv[i]);
-				break;
-
-			case 'l':
-				if (cmd != COMMAND_SET_NONE)
-					exit_with_usage (argv[0]);
-				if (++i < argc)
-					value = atoi (argv[i]);
-				else
-					value = HUB_LED_GREEN;
-				cmd = COMMAND_SET_LED;
-				break;
-
-			case 'p':
-				if (cmd != COMMAND_SET_NONE)
-					exit_with_usage (argv[0]);
-				if (++i < argc)
-					value = atoi (argv[i]);
-				else
-					value= 0;
-				cmd = COMMAND_SET_POWER;
-				break;
-
-			case 'v':
-				verbose = 1;
-				if (argc == 2)
-					listing = 1;
-				break;
-
-			default:
-				exit_with_usage (argv[0]);
-		}
-		else
-			exit_with_usage (argv[0]);
-	}
-
-	if ((busnum > 0 && devnum <= 0) || (busnum <= 0 && devnum > 0))
-		/* BUS is specified, but DEV is'nt, or ... */
-		exit_with_usage (argv[0]);
-
-	/* Default is the hub #0 */
-	if (hub < 0 && busnum == 0)
-		hub = 0;
-
-	/* Default is POWER */
-	if (cmd == COMMAND_SET_NONE)
-		cmd = COMMAND_SET_POWER;
-
-
-	if (usb_find_hubs (listing, verbose, busnum, devnum, hub) <= 0)
-	{
-		fprintf (stderr, "No hubs found.\n");
-		libusb_exit( ctx );
-		exit (1);
-	}
-
-	if (listing){
-		libusb_exit( ctx );
-		exit (0);
-	}
-
-	if (hub < 0)
-		hub = get_hub (busnum, devnum);
-
-	if (hub >= 0 && hub < number_of_hubs_with_feature){
-		if ( libusb_open (hubs[hub].dev, &uh ) || uh == NULL)
-		{
-			fprintf (stderr, "Device not found.\n");
-			result = 1;
-		}
-		else
-		{
-			if (cmd == COMMAND_SET_POWER){
-				if (value){
-					request = LIBUSB_REQUEST_SET_FEATURE;
-					feature = USB_PORT_FEAT_POWER;
-					index = port;
-				}else{
-					request = LIBUSB_REQUEST_CLEAR_FEATURE;
-					feature = USB_PORT_FEAT_POWER;
-					index = port;
-				}
-			}else{
-				request = LIBUSB_REQUEST_SET_FEATURE;
-				feature = USB_PORT_FEAT_INDICATOR;
-				index = (value << 8) | port;
-			}
-
-			if (verbose)
-				printf ("Send control message (REQUEST=%d, FEATURE=%d, INDEX=%d)\n",
-				request, feature, index);
-/*
-			if(libusb_detach_kernel_driver( uh, 0 ))
-				perror("libusb_detach_kernel_driver");
-			if(libusb_claim_interface( uh, 0 ))
-				perror("libusb_claim_interface");
-*/
-			if (libusb_control_transfer (uh, USB_RT_PORT, request, feature, index,
-				NULL, 0, CTRL_TIMEOUT) < 0)
-			{
-				perror ("failed to control.\n");
-				result = 1;
-			}
-
-			if (verbose)
-				hub_port_status (uh, hubs[hub].nport);
-/*
-			libusb_release_interface( uh,0 );
-			libusb_attach_kernel_driver( uh, 0); 
-*/
-
-			libusb_close (uh);
-		}
-	}
-#endif
 	novena_hub_deinit(&st);
 
 	return 0;
