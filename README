@@ -1,0 +1,14 @@
+novena-usb
+
+Test power and overcurrent control for internal and external ports on Novena.
+
+Heavily based on hub-ctrl.
+
+To list port status, run with "-l".
+
+When enabling or disabling a port, you need to describe the port you're
+referring to.  A port descriptor is a letter+number combination.  The letter
+must be 'i' for internal or 'e' for external, and the number must be 1-4.
+
+For example, to enable internal ports 3 and 4, run:
+    novena-hub -e i3 -e i4
