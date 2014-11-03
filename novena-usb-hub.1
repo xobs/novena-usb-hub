@@ -1,0 +1,32 @@
+.TH NOVENA-USB-HUB 1 "3 Nov 2014" Novena "Linux System Administration"
+.SH NAME
+novena-usb-hub \- manipulate USB ports on Novena
+.SH SYNOPSIS
+.B novena-usb-hub
+.RB [\| \-l \|]
+.RB [\| \-e port \|]
+.RB [\| \-d port \|]
+
+.SH DESCRIPTION
+.LP
+Novena has power switches on its USB ports.  This program allows you to list
+the current devices attached to various ports, and turn power to various ports
+on and off.
+.SH OPTIONS
+.TP
+.BI \-l
+List all devices currently attached
+.TP
+.BI \-e " PORTSPEC"
+Enable power to the specified port.
+.TP
+.BI \-d " PORTSPEC"
+Disable power to the specified port.
+
+.SH PORTSPEC
+The port specification is a combination of a letter and a number.  To control
+an internal port, specify \fIi\fR.  To control an external port,
+specify \fIe\fR.  Follow the letter with a port number, 1-4.
+For example, \fI-e i1\fR or \fI-d e3\fR.
+.SH AUTHORS
+Written by Sean Cross <xobs@kosagi.com>

@@ -58,20 +58,47 @@ struct hub_info {
 	int indicator_support;
 };
 
-static void hub_port_status (libusb_device_handle *uh, int nport) {
-	int i;
+static const char *port_names[] = {
+	"Side (near SD slot)",
+	"100 Mbit Ethernet",
+	"PCIe",
+	"Downstream hub",
 
-	printf(" Hub Port Status: (%d)\n", nport);
+	"Side (away from SD slot)",
+	"Front panel",
+	"Near speakers",
+	"LVDS board",
+};
+
+static void hub_port_status(libusb_device_handle *uh, int hub_number) {
+	int i;
+	int ret;
+	struct usb_hub_descriptor d;
+	int nport;
+
+	ret = libusb_control_transfer(uh,
+			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS,
+			LIBUSB_REQUEST_GET_DESCRIPTOR,
+			0, 0, (unsigned char *)&d, sizeof(d), CTRL_TIMEOUT);
+	if (ret < 0) {
+		fprintf(stderr,
+			"Error %d, cannot read hub status, %s (%d)\n",
+				ret, strerror(errno), errno);
+		return;
+	}
+
+	nport = d.bNbrPorts;
+	printf("Hub Status (%d ports):\n", nport);
+
 	for (i = 0; i < nport; i++)
 	{
 		uint8_t buf[USB_STATUS_SIZE];
-		int ret;
 
-		ret = libusb_control_transfer (uh,
+		ret = libusb_control_transfer(uh,
 			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_OTHER,
 			LIBUSB_REQUEST_GET_STATUS, 
 			0, i + 1,
-			buf, USB_STATUS_SIZE,
+			buf, sizeof(buf),
 			CTRL_TIMEOUT);
 		if (ret < 0)
 		{
@@ -92,7 +119,7 @@ static void hub_port_status (libusb_device_handle *uh, int nport) {
 			(buf[2] & 0x02) ? " C_ENABLE" : "",
 			(buf[2] & 0x01) ? " C_CONNECT" : "");
 
-		printf("%s%s%s%s%s%s%s%s%s%s\n",
+		printf("%s%s%s%s%s%s%s%s%s%s",
 			(buf[1] & 0x10) ? " indicator" : "",
 			(buf[1] & 0x08) ? " test" : "",
 			(buf[1] & 0x04) ? " highspeed" : "",
@@ -103,6 +130,11 @@ static void hub_port_status (libusb_device_handle *uh, int nport) {
 			(buf[0] & 0x04) ? " suspend" : "",
 			(buf[0] & 0x02) ? " enable" : "",
 			(buf[0] & 0x01) ? " connect" : "");
+
+		if (((hub_number * 4) + i) < (sizeof(port_names) / sizeof(*port_names)))
+			printf(" - %s", port_names[hub_number * 4 + i]);
+
+		printf("\n");
 	}
 }
 
@@ -115,7 +147,7 @@ static int set_port_power(struct state *st,
 	int index;
 
 	int ret;
-	struct libusb_device_handle *hub;
+	struct libusb_device_handle *hub = NULL;
 
 	if (enabled) {
 		request = LIBUSB_REQUEST_SET_FEATURE;
@@ -154,12 +186,12 @@ static int get_port(struct state *st, char *port, int *portnum,
 	int current;
 	int ret = 0;
 	int bus_offset = 0;
-	int hubs_seen = 0;
+	int hub_number = 0;
 
-	if (*port == 'i')
-		bus_offset = 0;
-	else if (*port == 'e')
+	if (*port == 'd')
 		bus_offset = 1;
+	else if (*port == 'u')
+		bus_offset = 2;
 	else
 		return -EINVAL;
 
@@ -187,15 +219,12 @@ static int get_port(struct state *st, char *port, int *portnum,
 		dev_vid = libusb_le16_to_cpu(device_desc.idVendor);
 		dev_pid = libusb_le16_to_cpu(device_desc.idProduct);
 
-		if (device_desc.bDeviceClass != LIBUSB_CLASS_HUB) {
-			continue;
-		}
-
 		if (libusb_open(dev, &uh) != 0 )
 			continue;
 
 		if (dev_vid == 0x05e3 && dev_pid == 0x0614) {
-			if (hubs_seen++ == bus_offset) {
+			hub_number++;
+			if (hub_number == bus_offset) {
 				libusb_ref_device(dev);
 				*hub_dev = dev;
 			}
@@ -217,8 +246,8 @@ static int set_port(struct state *st, char *port, int val) {
 	int portnum;
 	ret = get_port(st, port, &portnum, &hub);
 	if (ret == -EINVAL) {
-		fprintf(stderr, "Error: Must specify port as 'eN' or 'iN' "
-				"for either internal or external port.\n"
+		fprintf(stderr, "Error: Must specify port as 'dN' or 'uN' "
+				"for either downstream or upstream hub.\n"
 				"Port number must be 1, 2, 3, or 4.\n");
 		return ret;
 	}
@@ -268,15 +297,15 @@ static int list_ports(struct state *st) {
 		if (libusb_open(dev, &uh) != 0 )
 			continue;
 
-
 		if (dev_vid == 0x05e3 && dev_pid == 0x0614) {
-			if (hub_number++ == 0)
-				printf("Internal hub - ");
-			else if (hub_number++ == 1)
-				printf("External hub - ");
+			hub_number++;
+			if (hub_number == 1)
+				printf("Upstream hub - ");
+			else if (hub_number == 2)
+				printf("Downstream hub - ");
 			else
-				printf("Unknown hub %d - ", hub_number-2);
-			hub_port_status(uh, 4);
+				printf("Unknown hub %d - ", hub_number - 2);
+			hub_port_status(uh, hub_number - 1);
 		}
 
 		libusb_free_config_descriptor(config_desc);
@@ -292,8 +321,8 @@ static int print_help(struct state *st) {
 	fprintf(stderr,
 		"Usage: %s [-e PORT] [-d PORT] -l\n"
 		"\n"
-		"Where PORT is defined as 'i' or 'e' followed by the port number.\n"
-		"For example, 'i4' for internal port 4, or 'e2' for external port 2.\n"
+		"Where PORT is defined as 'u' or 'd' followed by the port number.\n"
+		"For example, 'u3' for upstream port 3, or 'd2' for downstream port 2.\n"
 		"To list port status, run with -l.\n"
 		"",
 		st->progname);

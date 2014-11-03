@@ -1,7 +1,14 @@
-CFLAGS=`pkg-config libusb-1.0 --cflags` -Wall -g
-LIBS=`pkg-config libusb-1.0 --libs`
+CFLAGS += `pkg-config libusb-1.0 --cflags --libs` -Wall -g $(shell dpkg-buildflags --get CFLAGS)
+LDFLAGS += `pkg-config libusb-1.0 --libs` -g $(shell dpkg-buildflags --get LDFLAGS)
+
 all:
-	$(CC) novena-usb-hub.c -o novena-usb-hub $(CFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) novena-usb-hub.c -o novena-usb-hub
 
 clean:
-	rm -f novena-usb-hub
+	rm -f novena-disable-ssp
+
+install:
+	mkdir -p $(DESTDIR)/usr/sbin
+	mkdir -p $(DESTDIR)/usr/share/man/man1
+	cp novena-usb-hub $(DESTDIR)/usr/bin/
+	cp novena-usb-hub.1 $(DESTDIR)/usr/share/man/man1
