@@ -8,7 +8,7 @@ clean:
 	rm -f novena-disable-ssp
 
 install:
-	mkdir -p $(DESTDIR)/usr/sbin
+	mkdir -p $(DESTDIR)/usr/bin
 	mkdir -p $(DESTDIR)/usr/share/man/man1
 	cp novena-usb-hub $(DESTDIR)/usr/bin/
 	cp novena-usb-hub.1 $(DESTDIR)/usr/share/man/man1
