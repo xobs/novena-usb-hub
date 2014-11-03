@@ -1,0 +1,10 @@
+[Unit]
+Description=List USB ports to get hubs working
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/bin/novena-hub -l
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
