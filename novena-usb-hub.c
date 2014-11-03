@@ -199,6 +199,14 @@ static int get_port(struct state *st, char *port, int *portnum,
 	if (*portnum < 1 || *portnum > 4)
 		return -EINVAL;
 
+	/* XXX These ports have their wires swapped */
+	if (bus_offset == 1) {
+		if (*portnum == 4)
+			*portnum = 1;
+		else if (*portnum == 1)
+			*portnum = 4;
+	}
+
 	if (libusb_get_device_list(st->ctx, &devs) < 0){
 		perror ("failed to access USB");
 		return 0;
