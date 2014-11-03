@@ -5,7 +5,7 @@ all:
 	$(CC) $(CFLAGS) $(LDFLAGS) novena-usb-hub.c -o novena-usb-hub
 
 clean:
-	rm -f novena-disable-ssp
+	rm -f novena-usb-hub
 
 install:
 	mkdir -p $(DESTDIR)/usr/bin
