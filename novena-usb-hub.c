@@ -75,6 +75,14 @@ static void hub_port_status(libusb_device_handle *uh, int hub_number) {
 	int ret;
 	struct usb_hub_descriptor d;
 	int nport;
+	char c;
+
+	if (hub_number == 0)
+		c = 'u';
+	else if (hub_number == 1)
+		c = 'd';
+	else
+		c = '?';
 
 	ret = libusb_control_transfer(uh,
 			LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS,
@@ -108,7 +116,8 @@ static void hub_port_status(libusb_device_handle *uh, int hub_number) {
 			continue;
 		}
 
-		printf("   Port %d: %02x%02x.%02x%02x", i + 1,
+		printf("   Port %d (%c%d): %02x%02x.%02x%02x", i + 1,
+			c, i + 1,
 			buf[3], buf [2],
 			buf[1], buf [0]);
 
