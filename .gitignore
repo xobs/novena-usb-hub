@@ -1,0 +1,9 @@
+/novena-usb-hub
+*.swp
+*.swo
+*~
+/debian/*.debhelper
+/debian/files
+/debian/novena-usb-hub
+/debian/novena-usb-hub.debhelper.log
+/debian/novena-usb-hub.substvars
