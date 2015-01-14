@@ -70,6 +70,38 @@ static const char *port_names[] = {
 	"LVDS board",
 };
 
+static int get_hub_number(libusb_device *dev) {
+	struct libusb_device *parent;
+	struct libusb_device_descriptor parent_device_desc;
+	uint16_t dev_vid, dev_pid;
+	int ret;
+
+	parent = libusb_get_parent(dev);
+
+	ret = libusb_get_device_descriptor(parent, &parent_device_desc);
+	if (ret)
+		return -1;
+
+	dev_vid = libusb_le16_to_cpu(parent_device_desc.idVendor);
+	dev_pid = libusb_le16_to_cpu(parent_device_desc.idProduct);
+
+	if (dev_vid == 0x1d6b && dev_pid == 0x0002) {
+		// If parent is "Linux Foundation 2.0 root hub", this is upstream hub
+		return 1;
+	}
+	if (dev_vid == 0x05e3 && dev_pid == 0x0614) {
+		// If parent is another hub ...
+		if (libusb_get_port_number(dev) == 4) {
+			// and we're connected to port #4...
+			if (get_hub_number(parent) == 1) {
+				// And it's upstream hub, then we're downstream one
+				return 2;
+			}
+		}
+	}
+	return 3;
+}
+
 static void hub_port_status(libusb_device_handle *uh, int hub_number) {
 	int i;
 	int ret;
@@ -198,9 +230,9 @@ static int get_port(struct state *st, char *port, int *portnum,
 	int hub_number = 0;
 
 	if (*port == 'd')
-		bus_offset = 1;
-	else if (*port == 'u')
 		bus_offset = 2;
+	else if (*port == 'u')
+		bus_offset = 1;
 	else
 		return -EINVAL;
 
@@ -209,7 +241,7 @@ static int get_port(struct state *st, char *port, int *portnum,
 		return -EINVAL;
 
 	/* XXX These ports have their wires swapped */
-	if (bus_offset == 1) {
+	if (bus_offset == 2) {
 		if (*portnum == 4)
 			*portnum = 1;
 		else if (*portnum == 1)
@@ -240,7 +272,7 @@ static int get_port(struct state *st, char *port, int *portnum,
 			continue;
 
 		if (dev_vid == 0x05e3 && dev_pid == 0x0614) {
-			hub_number++;
+			hub_number = get_hub_number(dev);
 			if (hub_number == bus_offset) {
 				libusb_ref_device(dev);
 				*hub_dev = dev;
@@ -288,7 +320,8 @@ static int list_ports(struct state *st) {
 	struct libusb_device **devs;
 	struct libusb_device *dev;
 	int current;
-	int hub_number = 0;
+	int hub_number;
+	int unknown_hub_number = 0;
 	int ret = 0;
 
 	if (libusb_get_device_list(st->ctx, &devs) < 0){
@@ -315,13 +348,13 @@ static int list_ports(struct state *st) {
 			continue;
 
 		if (dev_vid == 0x05e3 && dev_pid == 0x0614) {
-			hub_number++;
+			hub_number = get_hub_number(dev);
 			if (hub_number == 1)
 				printf("Upstream hub - ");
 			else if (hub_number == 2)
 				printf("Downstream hub - ");
 			else
-				printf("Unknown hub %d - ", hub_number - 2);
+				printf("Unknown hub %d - ", (++unknown_hub_number));
 			hub_port_status(uh, hub_number - 1);
 		}
 
