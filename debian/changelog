@@ -1,3 +1,9 @@
+novena-usb-hub (1.1-r1) unstable; urgency=medium
+
+  * Use topology analysis to determine hub order
+
+ -- Sean Cross <xobs@kosagi.com>  Wed, 14 Jan 2015 12:42:20 +0800
+
 novena-usb-hub (1.0-1) unstable; urgency=low
 
   * Initial release
