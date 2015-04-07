@@ -1,3 +1,9 @@
+novena-usb-hub (1.2-r1) unstable; urgency=medium
+
+  * Disable and re-enable port 3 (PCIe port)
+
+ -- Sean Cross <xobs@kosagi.com>  Tue, 07 Apr 2015 12:10:22 +0800
+
 novena-usb-hub (1.1-r1) unstable; urgency=medium
 
   * Use topology analysis to determine hub order

@@ -1,10 +1,14 @@
 [Unit]
 Description=List USB ports to get hubs working
+After=sleep.target
 
 [Service]
 Type=oneshot
-ExecStart=-/usr/bin/novena-hub -l
-RemainAfterExit=yes
+ExecStart=-/usr/bin/novena-usb-hub -d u3
+ExecStart=-/usr/bin/novena-usb-hub -e u3
+ExecStart=-/usr/bin/novena-usb-hub -l
+RemainAfterExit=no
 
 [Install]
 WantedBy=multi-user.target
+WantedBy=sleep.target

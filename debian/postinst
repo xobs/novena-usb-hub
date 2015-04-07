@@ -1,0 +1,3 @@
+#!/bin/sh
+set -e
+chmod 4775 /usr/bin/novena-usb-hub
