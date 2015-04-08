@@ -1,6 +1,5 @@
 [Unit]
 Description=List USB ports to get hubs working
-After=sleep.target
 
 [Service]
 Type=oneshot
@@ -11,4 +10,3 @@ RemainAfterExit=no
 
 [Install]
 WantedBy=multi-user.target
-WantedBy=sleep.target
