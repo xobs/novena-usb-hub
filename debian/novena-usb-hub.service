@@ -6,7 +6,7 @@ Type=oneshot
 ExecStart=-/usr/bin/novena-usb-hub -d u3
 ExecStart=-/usr/bin/novena-usb-hub -e u3
 ExecStart=-/usr/bin/novena-usb-hub -l
-RemainAfterExit=no
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
