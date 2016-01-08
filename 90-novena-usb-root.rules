@@ -1,0 +1,4 @@
+ACTION=="add", SUBSYSTEM=="platform", DRIVER=="imx_usb" TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="platform", DRIVER=="ci_hdrc" TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="bluetooth", TEST=="power/control", ATTR{power/control}="on"
