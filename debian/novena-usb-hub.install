@@ -1,3 +1,4 @@
 usr/bin/novena-usb-hub
 usr/share/man/man1/novena-usb-hub.1
 lib/systemd/system-sleep/reset-bluetooth-port.sh
+lib/udev/rules.d/90-novena-usb-root.rules

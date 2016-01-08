@@ -8,6 +8,8 @@ include /usr/share/dpkg/default.mk
 override_dh_install:
 	mkdir -p debian/novena-usb-hub/lib/systemd/system-sleep/
 	cp reset-bluetooth-port.sh debian/novena-usb-hub/lib/systemd/system-sleep/
+	mkdir -p debian/novena-usb-hub/lib/udev/rules.d/
+	cp 90-novena-usb-root.rules debian/novena-usb-hub/lib/udev/rules.d
 
 %:
 	dh $@ --with=systemd
